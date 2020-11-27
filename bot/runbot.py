@@ -1,6 +1,6 @@
 from enum import Enum
 import telebot
-from dbrequests import initialize
+from dbrequests import initialize, addquestion
 from datetime import datetime as dt
 import requests
 import os
@@ -47,6 +47,7 @@ def handle_message(message):
     elif action == CURRENT_ACTION.QUESTION_ANSWER:
         action_data[ACTION_DATA.QUESTION_ANSWER] = message.text
         action = CURRENT_ACTION.ATTACHING_FILES
+        action_data[ACTION_DATA.ATTACHMENTS] = list()
         bot.send_message(message.chat.id, '--- *Adding question #4* ---\nIf you want to attach any files to this question, send them to me *AS DOCUMENTS*. \nIf not, type /saveq', parse_mode='Markdown')
 
 @bot.message_handler(content_types=['document', 'photo'])
@@ -55,7 +56,7 @@ def attach_files(message):
     if action == CURRENT_ACTION.ATTACHING_FILES:
         if message.document:
             download_file(message.document.file_name, message.document.file_id)
-            action_data[ACTION_DATA.ATTACHMENTS] = action_data[ACTION_DATA.ATTACHMENTS].append(message.document.file_name) if ACTION_DATA.ATTACHMENTS in action_data else [message.document.file_name]
+            action_data[ACTION_DATA.ATTACHMENTS].append(message.document.file_name)
         else:
             bot.reply_to(message, 'I see you want to add files to your question, but you didn\'t attach any documents.\nPlease send the files *as documents*', parse_mode='Markdown')
     else:
@@ -67,15 +68,22 @@ def save_question(message):
     if not action == CURRENT_ACTION.ATTACHING_FILES:
         bot.reply_to(message, 'You don\'t have any questions to save yet')
         return
-    bot.send_message(message.chat.id, '*Your question has been successfuly added to the database*\nHere\'s what I added:\n\n\t*Category:* %s\n\t*Text*: %s\n\t*Answer*: %s\n\n\nThe attachments will follow this message or their absence will be indicated'%(action_data[ACTION_DATA.CATEGORY_NAME], action_data[ACTION_DATA.QUESTION_TEXT], action_data[ACTION_DATA.QUESTION_ANSWER]), parse_mode='Markdown')
 
-    if not ACTION_DATA.ATTACHMENTS in list(action_data.keys()):
+    try:
+        addquestion(action_data[ACTION_DATA.CATEGORY_NAME], action_data[ACTION_DATA.QUESTION_TEXT], action_data[ACTION_DATA.QUESTION_ANSWER], str(action_data[ACTION_DATA.ATTACHMENTS]))
+    except Exception as e:
+        bot.send_message(message.chat.id, '*Something went wrong:*\n%s'%str(e), parse_mode='Markdown')
+        return
+
+    bot.send_message(message.chat.id, '*Your question has been successfuly added to the database*\nHere\'s what I added:\n\n\t*Category:* %s\n\t*Text*: %s\n\t*Answer*: %s\n\n\tNumber of attachments: %d'%(action_data[ACTION_DATA.CATEGORY_NAME], action_data[ACTION_DATA.QUESTION_TEXT], action_data[ACTION_DATA.QUESTION_ANSWER], len(action_data[ACTION_DATA.ATTACHMENTS])), parse_mode='Markdown')
+
+    if len(action_data[ACTION_DATA.ATTACHMENTS]) == 0:
         bot.send_message(message.chat.id, 'No attachments')
         action = CURRENT_ACTION.IDLE
         action_data = dict()
         return
 
-    if ACTION_DATA.ATTACHMENTS in list(action_data.keys()):
+    if len(action_data[ACTION_DATA.ATTACHMENTS]) != 0:
         for file in action_data[ACTION_DATA.ATTACHMENTS]:
             with open(os.path.join(FILES_PATH, file.lower()), 'rb') as f:
                 if file.lower()[-3:] in ['jpg', 'png']:

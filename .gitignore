@@ -1,5 +1,6 @@
 params.py
 database.db
+files/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

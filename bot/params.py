@@ -20,6 +20,10 @@ tables = {
 ALLOWED_USERS = ['marxygen']
 
 CREATE_TABLE_COMMAND = """
-CREATE TABLE %s (question text, attached_files_src text, successful_attempts integer,
+CREATE TABLE %s (question text, answer text, attached_files_src text, successful_attempts integer,
                    total_attempts integer, hidden integer)
+"""
+
+ADD_QUESTION_COMMAND = """
+INSERT INTO %s VALUES (?, ?, ?, ?, ?, ?)
 """
