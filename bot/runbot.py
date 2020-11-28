@@ -1,6 +1,6 @@
 from enum import Enum
 import telebot
-from dbrequests import initialize, addquestion
+from dbrequests import initialize, addquestion, counttables
 from datetime import datetime as dt
 import requests
 import os
@@ -22,6 +22,13 @@ def download_file(filename, file_id):
     r = requests.get(f'https://api.telegram.org/file/bot{BOT_TOKEN}/{file_path}', allow_redirects=True)
     with open(os.path.join(FILES_PATH, filename.lower()), mode='wb+') as f:
         f.write(r.content)
+
+@bot.message_handler(commands=['stats'])
+def stats(message):
+    answer = ''
+    for table, numof_q in list(counttables().items()):
+        answer += f'_{table.capitalize()}_: {numof_q}\n'
+    bot.send_message(message.chat.id, '*Number of questions by section*\n'+answer, parse_mode='Markdown')
 
 @bot.message_handler(commands=['addq'])
 def add_question(message):
@@ -57,6 +64,7 @@ def attach_files(message):
         if message.document:
             download_file(message.document.file_name, message.document.file_id)
             action_data[ACTION_DATA.ATTACHMENTS].append(message.document.file_name)
+            bot.reply_to(message, 'The attachment has been processed. You can proceed to the next step now.')
         else:
             bot.reply_to(message, 'I see you want to add files to your question, but you didn\'t attach any documents.\nPlease send the files *as documents*', parse_mode='Markdown')
     else:

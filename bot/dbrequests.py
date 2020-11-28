@@ -1,9 +1,6 @@
 import sqlite3
-from params import DB_NAME, tables, CREATE_TABLE_COMMAND, ADD_QUESTION_COMMAND
+from params import DB_NAME, tables, CREATE_TABLE_COMMAND, ADD_QUESTION_COMMAND, NUMBEROF_ENTRIES
 from datetime import datetime as dt
-
-connection = sqlite3.connect(DB_NAME)
-cursor = connection.cursor()
 
 def initialize():
     try:
@@ -12,11 +9,16 @@ def initialize():
         print(f'\t[{dt.now()}] Exception occurred:\n\t\t{str(e)}')
 
 def __tablexists(table_name):
+    connection = sqlite3.connect(DB_NAME)
+    cursor = connection.cursor()
+
     cursor.execute("SELECT count(name) FROM sqlite_master WHERE type='table' AND name=?", [table_name])
     if cursor.fetchone()[0]==1:
-    	return True
+        connection.close()
+        return True
     else:
-    	return None
+        return None
+        connection.close()
 
 def __runcommand(command, *, params=[], returnall=False, commit=False, many=False):
     connection = sqlite3.connect(DB_NAME)
@@ -36,4 +38,13 @@ def __runcommand(command, *, params=[], returnall=False, commit=False, many=Fals
     connection.close()
 
 def addquestion(category, text, answer, attachments):
-    __runcommand(ADD_QUESTION_COMMAND%category, params=[text, answer, attachments, 0, 0, 0], commit=True)
+    __runcommand(ADD_QUESTION_COMMAND%category, params=[text, answer, attachments, 0, 0, 0, dt.now()], commit=True)
+
+def counttables():
+    numbers = None
+    try:
+        numbers = {x:(__runcommand(NUMBEROF_ENTRIES%x, returnall=True))[0][0] for x in list(tables.values())}
+    except Exception as e:
+        print(f'\t[{dt.now()}] Exception occurred:\n\t\t{str(e)}')
+    finally:
+        return numbers
