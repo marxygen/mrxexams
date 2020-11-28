@@ -4,8 +4,7 @@ from dbrequests import initialize, addquestion, counttables, exportq
 from datetime import datetime as dt
 import requests
 import os
-
-from params import BOT_TOKEN, BOT_ADRESS, ALLOWED_USERS, CURRENT_ACTION, ACTION_DATA, tables, FILES_PATH
+from params import BOT_TOKEN, BOT_ADRESS, ALLOWED_USERS, CURRENT_ACTION, ACTION_DATA, tables, FILES_PATH, DB_NAME
 from buttons import CATEGORY_CHOOSING_MARKUP
 
 bot = telebot.TeleBot(BOT_TOKEN, 'Markdown')
@@ -30,6 +29,13 @@ def export(message):
         bot.send_document(message.chat.id, f)
 
     os.remove(file)
+
+@bot.message_handler(commands=['wipedb'])
+def wipedb(message):
+    export(message)
+    os.remove(DB_NAME)
+    bot.send_message(message.chat.id, 'The database has been successfuly wiped')
+    initialize()
 
 @bot.message_handler(commands=['stats'])
 def stats(message):
