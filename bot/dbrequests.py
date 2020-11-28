@@ -1,6 +1,8 @@
 import sqlite3
-from params import DB_NAME, tables, CREATE_TABLE_COMMAND, ADD_QUESTION_COMMAND, NUMBEROF_ENTRIES
+from params import DB_NAME, tables, CREATE_TABLE_COMMAND, ADD_QUESTION_COMMAND, NUMBEROF_ENTRIES, FILES_PATH, GET_ALL_ENTRIES_IN
 from datetime import datetime as dt
+import os
+import json
 
 def initialize():
     try:
@@ -48,3 +50,22 @@ def counttables():
         print(f'\t[{dt.now()}] Exception occurred:\n\t\t{str(e)}')
     finally:
         return numbers
+
+def getqin(category):
+    try:
+        return  __runcommand(GET_ALL_ENTRIES_IN%category, returnall=True)
+    except Exception as e:
+        print(f'\t[{dt.now()}] Exception occurred:\n\t\t{str(e)}')
+        return []
+
+def exportq():
+    filename = f'Report dd {str(dt.now())[:10]}.json'
+    path = os.path.join(FILES_PATH, filename)
+    jsons = []
+    for category in list(tables.values()):
+        jsons.append({'category':category, 'items':getqin(category)})
+
+    with open(path, 'w+') as f:
+        json.dump(jsons, f)
+
+    return path

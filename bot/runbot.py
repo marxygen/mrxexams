@@ -1,6 +1,6 @@
 from enum import Enum
 import telebot
-from dbrequests import initialize, addquestion, counttables
+from dbrequests import initialize, addquestion, counttables, exportq
 from datetime import datetime as dt
 import requests
 import os
@@ -22,6 +22,14 @@ def download_file(filename, file_id):
     r = requests.get(f'https://api.telegram.org/file/bot{BOT_TOKEN}/{file_path}', allow_redirects=True)
     with open(os.path.join(FILES_PATH, filename.lower()), mode='wb+') as f:
         f.write(r.content)
+
+@bot.message_handler(commands=['export'])
+def export(message):
+    file = exportq()
+    with open(file) as f:
+        bot.send_document(message.chat.id, f)
+
+    os.remove(file)
 
 @bot.message_handler(commands=['stats'])
 def stats(message):
