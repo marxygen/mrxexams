@@ -2,15 +2,18 @@ from enum import Enum
 import telebot
 from dbrequests import initialize, addquestion, counttables, exportq
 from datetime import datetime as dt
+from datetime import timedelta
 import requests
 import os
-from params import BOT_TOKEN, BOT_ADRESS, ALLOWED_USERS, CURRENT_ACTION, ACTION_DATA, tables, FILES_PATH, DB_NAME
+from params import BOT_TOKEN, BOT_ADRESS, ALLOWED_USERS, CURRENT_ACTION, ACTION_DATA, tables, FILES_PATH, DB_NAME, POMODORO_STAGE
 from buttons import CATEGORY_CHOOSING_MARKUP
-
+from threading import Timer
 bot = telebot.TeleBot(BOT_TOKEN, 'Markdown')
 
 action = CURRENT_ACTION.IDLE
 action_data = dict()
+pomodoro_stage = POMODORO_STAGE.NONE
+pomodoro_timer = None
 
 def access_allowed(username):
     return True if username in ALLOWED_USERS else None
@@ -21,6 +24,44 @@ def download_file(filename, file_id):
     r = requests.get(f'https://api.telegram.org/file/bot{BOT_TOKEN}/{file_path}', allow_redirects=True)
     with open(os.path.join(FILES_PATH, filename.lower()), mode='wb+') as f:
         f.write(r.content)
+
+def switch_pomstage(stage, chat_id):
+    global pomodoro_stage, bot, pomodoro_timer
+    if stage == POMODORO_STAGE.MIN25:
+        if pomodoro_timer:
+            pomodoro_timer.cancel()
+        pomodoro_timer = Timer(25*60, switch_pomstage,args=[POMODORO_STAGE.MIN5, chat_id])
+        pomodoro_stage = POMODORO_STAGE.MIN25
+        pomodoro_timer.start()
+        bot.send_message(chat_id, 'Your pomodoro session has been started.\nUse /pomstop to terminate\nTime remaining: 25 minutes (till %s)'%((dt.now() + timedelta(minutes=25)).time().strftime('%H:%M')))
+    elif stage == POMODORO_STAGE.MIN5:
+        if pomodoro_timer:
+            pomodoro_timer.cancel()
+        pomodoro_timer = Timer(5*60, switch_pomstage,args=[POMODORO_STAGE.MIN25, chat_id])
+        pomodoro_timer.start()
+        pomodoro_stage = POMODORO_STAGE.MIN5
+        bot.send_message(chat_id, 'It\'s time to make a 5 minute break! The next session will start at %s'%(dt.now() + timedelta(minutes=5)).time().strftime('%H:%M'))
+    else:
+        if pomodoro_timer:
+            pomodoro_timer.cancel()
+            pomodoro_timer = None
+        pomodoro_stage = POMODORO_STAGE.NONE
+
+@bot.message_handler(commands=['pomstart'])
+def pomstart(message):
+    if pomodoro_stage != POMODORO_STAGE.NONE:
+        bot.send_message(message.chat.id, 'You are in the middle of other pomodoro session. \nYou have to terminate it first.\nType /pomstop to do so')
+        return
+    pomodo_stage = POMODORO_STAGE.MIN25
+    switch_pomstage(POMODORO_STAGE.MIN25, message.chat.id)
+
+@bot.message_handler(commands=['pomstop'])
+def pomstop(message):
+    if pomodoro_stage == POMODORO_STAGE.NONE:
+        bot.send_message(message.chat.id, 'There\'s no ongoing pomodoro session to terminate.\nStart one with /pomstart')
+        return
+    switch_pomstage(POMODORO_STAGE.NONE, message.chat.id)
+    bot.send_message(message.chat.id, 'Your pomodoro session has been terminated')
 
 @bot.message_handler(commands=['export'])
 def export(message):
