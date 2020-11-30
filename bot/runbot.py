@@ -8,6 +8,7 @@ import os
 from params import BOT_TOKEN, BOT_ADRESS, ALLOWED_USERS, CURRENT_ACTION, ACTION_DATA, tables, FILES_PATH, DB_NAME, POMODORO_STAGE
 from buttons import CATEGORY_CHOOSING_MARKUP
 from threading import Timer
+
 bot = telebot.TeleBot(BOT_TOKEN, 'Markdown')
 
 action = CURRENT_ACTION.IDLE
@@ -46,6 +47,10 @@ def switch_pomstage(stage, chat_id):
             pomodoro_timer.cancel()
             pomodoro_timer = None
         pomodoro_stage = POMODORO_STAGE.NONE
+
+@bot.message_handler(commands=['help'])
+def help(message):
+    bot.send_message(message.chat.id, f'*Help*\n_/stats_ - Show number of questions by category\n_/addq_ - add a new question (triggers adding question procedure)\n_/saveq_ - Save the question\n_/pomstart_ - Enter Pomodoro session (25-5 minutes)\n_/pomstop_ - Exit Pomodoro session\n_/wipedb_ - Wipe the database\n_/export_ - Export all existing questions as JSON', parse_mode='Markdown')
 
 @bot.message_handler(commands=['pomstart'])
 def pomstart(message):
@@ -164,7 +169,7 @@ def discard_action(message):
     action_data = dict()
     bot.send_message(message.chat.id, 'All changes discarded')
 
-@bot.message_handler(commands=['start', 'help'])
+@bot.message_handler(commands=['start'])
 def send_welcome(message):
 	bot.send_message(message.chat.id, f'Hey, {message.from_user.username}\nThis bot is solely for use by specific people. \nYou have access to this bot: {access_allowed(message.from_user.username)}')
 
