@@ -1,3 +1,4 @@
+import sys
 from enum import Enum
 import telebot
 from dbrequests import initialize, addquestion, counttables, exportq
@@ -6,8 +7,10 @@ from datetime import timedelta
 import requests
 import os
 from params import BOT_TOKEN, BOT_ADRESS, ALLOWED_USERS, CURRENT_ACTION, ACTION_DATA, tables, FILES_PATH, DB_NAME, POMODORO_STAGE
-from buttons import CATEGORY_CHOOSING_MARKUP
+from buttons import CATEGORY_CHOOSING_MARKUP, get_words_markup
 from threading import Timer
+sys.path.append(r'C:\Users\Asus\mrxexams\\')
+from misc.getwords import getwords
 
 bot = telebot.TeleBot(BOT_TOKEN, 'Markdown')
 
@@ -15,6 +18,10 @@ action = CURRENT_ACTION.IDLE
 action_data = dict()
 pomodoro_stage = POMODORO_STAGE.NONE
 pomodoro_timer = None
+
+memorytest_timer = None
+memorytest_corr = []
+memorytest_words = []
 
 def access_allowed(username):
     return True if username in ALLOWED_USERS else None
@@ -41,12 +48,73 @@ def switch_pomstage(stage, chat_id):
         pomodoro_timer = Timer(5*60, switch_pomstage,args=[POMODORO_STAGE.MIN25, chat_id])
         pomodoro_timer.start()
         pomodoro_stage = POMODORO_STAGE.MIN5
-        bot.send_message(chat_id, 'It\'s time to make a 5 minute break! The next session will start at %s'%(dt.now() + timedelta(minutes=5)).time().strftime('%H:%M'))
+        bot.send_message(chat_id, 'It\'s time to take a 5 minute break! The next session will start at %s'%(dt.now() + timedelta(minutes=5)).time().strftime('%H:%M'))
     else:
         if pomodoro_timer:
             pomodoro_timer.cancel()
             pomodoro_timer = None
         pomodoro_stage = POMODORO_STAGE.NONE
+
+def hide_words(message):
+    chat_id = message.chat.id
+    bot.delete_message(chat_id, message)
+    bot.send_message(chat_id, 'Time is up.\nSend the words to me in the order they originally were')
+
+def check_words(chat_id):
+    global memorytest_corr, memorytest_words
+    results = ""
+    correct = 0
+    for index, word in enumerate(memorytest_words):
+        if word == memorytest_words[index]:
+            results += '+ %s\n'%word
+            correct += 1
+        else:
+            results += '- %s [%s]\n'%(word, memorytest_words[index])
+
+    results += 'Correct: %d'%correct
+
+    bot.send_message(chat_id, results)
+
+@bot.message_handler(commands=['memtest'])
+def init_memtest(message):
+    global action, memorytest_timer, memorytest_words, memorytest_corr
+
+    if action != CURRENT_ACTION.IDLE:
+        bot.reply_to(message, 'You are in the middle of somethind else. Finish it first!')
+        return
+
+    words = getwords(10)
+    markup = get_words_markup(words)
+    memorytest_words = []
+
+    words_str = ""
+    for (word, translation) in words:
+        words_str += '*%s* (%s)\n'%(word, translation)
+
+    memorytest_corr = [word for (word, translation) in words]
+
+    action = CURRENT_ACTION.MEMORY_TEST
+
+    if memorytest_timer:
+        memorytest_timer.cancel()
+
+    memorytest_timer = Timer(40, hide_words, args=[message])
+    memorytest_timer.start()
+
+    bot.send_message(message.chat.id, '*Memory test*\nMemorize the words below in the order they are presented\n\n%s\nYou have 40 seconds to do this task. This message will disappear and you will be asked to send the words in the correct order using the keyboard or by typing them'%words_str, reply_markup=markup, parse_mode='Markdown')
+
+@bot.message_handler(commands=['memex'])
+def stop_memtest(message):
+    global memorytest_timer
+
+    if not memorytest_timer:
+        bot.reply_to(message, 'No memory test in progress.\nStart one with /memtest')
+        return
+
+    memorytest_timer.cancel()
+    memorytest_timer = None
+
+    bot.send_message(message.chat.id, 'The memtest has been stopped.\nStart one with /memtest')
 
 @bot.message_handler(commands=['help'])
 def help(message):
@@ -99,7 +167,7 @@ def add_question(message):
 
 @bot.message_handler(func=lambda message: message.text and message.text != '' and not message.text.startswith('/'))
 def handle_message(message):
-    global action, action_data
+    global action, action_data, memorytest_words
     if action == CURRENT_ACTION.CHOOSING_CATEGORY:
         if message.text.lower() in tables.values():
             action_data[ACTION_DATA.CATEGORY_NAME] = message.text
@@ -116,6 +184,10 @@ def handle_message(message):
         action = CURRENT_ACTION.ATTACHING_FILES
         action_data[ACTION_DATA.ATTACHMENTS] = list()
         bot.send_message(message.chat.id, '--- *Adding question #4* ---\nIf you want to attach any files to this question, send them to me *AS DOCUMENTS*. \nIf not, type /saveq', parse_mode='Markdown')
+    elif action == CURRENT_ACTION.MEMORY_TEST:
+        memorytest_words.append(message.text)
+        if len(memorytest_words) == 10:
+            check_words(message.chat.id)
 
 @bot.message_handler(content_types=['document', 'photo'])
 def attach_files(message):
