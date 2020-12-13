@@ -6,12 +6,12 @@ from datetime import datetime as dt
 from datetime import timedelta
 import requests
 import os
-from params import BOT_TOKEN, BOT_ADRESS, ALLOWED_USERS, CURRENT_ACTION, ACTION_DATA, tables, FILES_PATH, DB_NAME, POMODORO_STAGE
-from buttons import CATEGORY_CHOOSING_MARKUP, get_words_markup
+from params import BOT_TOKEN, BOT_ADRESS, ALLOWED_USERS, CURRENT_ACTION, ACTION_DATA, tables, FILES_PATH, DB_NAME, POMODORO_STAGE, MEMTEST_NUMOF_WORDS
+from buttons import get_category_choosing_markup, get_words_markup
 from threading import Timer
 sys.path.append(r'C:\Users\Asus\mrxexams\\')
 from misc.getwords import getwords
-
+    
 bot = telebot.TeleBot(BOT_TOKEN, 'Markdown')
 
 action = CURRENT_ACTION.IDLE
@@ -20,11 +20,19 @@ pomodoro_stage = POMODORO_STAGE.NONE
 pomodoro_timer = None
 
 memorytest_timer = None
+memorytest_message_id = None
 memorytest_corr = []
 memorytest_words = []
+memtest_markup = None
 
 def access_allowed(username):
     return True if username in ALLOWED_USERS else None
+
+def delete_message(chat_id, message_id):
+    r = requests.get(f'https://api.telegram.org/bot{BOT_TOKEN}/deleteMessage?chat_id={chat_id}&message_id={message_id}', allow_redirects=True)
+    return r.ok
+
+bot.delete_message = delete_message
 
 def download_file(filename, file_id):
     r = requests.get(f'https://api.telegram.org/bot{BOT_TOKEN}/getFile?file_id={file_id}', allow_redirects=True)
@@ -56,35 +64,44 @@ def switch_pomstage(stage, chat_id):
         pomodoro_stage = POMODORO_STAGE.NONE
 
 def hide_words(message):
+    global memorytest_message_id
     chat_id = message.chat.id
-    bot.delete_message(chat_id, message)
-    bot.send_message(chat_id, 'Time is up.\nSend the words to me in the order they originally were')
+    result = bot.delete_message(chat_id, memorytest_message_id)
+    if not result: bot.send_message(chat_id, 'Cannot delete the message')
+    bot.send_message(chat_id, 'Time is up.\nSend the words to me in the order they originally were', reply_markup=memtest_markup)
+    
+    memorytest_message_id = None
 
 def check_words(chat_id):
-    global memorytest_corr, memorytest_words
+    global memorytest_corr, memorytest_words, action
     results = ""
     correct = 0
-    for index, word in enumerate(memorytest_words):
-        if word == memorytest_words[index]:
+
+    for (index, word) in enumerate(memorytest_words):
+        if word == memorytest_corr[index].capitalize():
             results += '+ %s\n'%word
             correct += 1
         else:
-            results += '- %s [%s]\n'%(word, memorytest_words[index])
+            results += '- %s [%s]\n'%(word, memorytest_corr[index].capitalize())
 
-    results += 'Correct: %d'%correct
+    results += 'Correct: %d/%d'%(correct, len(memorytest_words))
+    result += '\n\nYour memory test has ended. Start one with /memtest'
 
     bot.send_message(chat_id, results)
+    action = CURRENT_ACTION.IDLE
+    stop_memtest(None)
 
 @bot.message_handler(commands=['memtest'])
 def init_memtest(message):
-    global action, memorytest_timer, memorytest_words, memorytest_corr
+    global action, memorytest_timer, memorytest_words, memorytest_corr, memorytest_message_id, memtest_markup
 
-    if action != CURRENT_ACTION.IDLE:
+    if action != CURRENT_ACTION.IDLE and message:
         bot.reply_to(message, 'You are in the middle of somethind else. Finish it first!')
         return
 
-    words = getwords(5)
-    markup = get_words_markup(words)
+    words = getwords(MEMTEST_NUMOF_WORDS)
+
+    memtest_markup = get_words_markup(words[::])
     memorytest_words = []
 
     words_str = ""
@@ -101,11 +118,11 @@ def init_memtest(message):
     memorytest_timer = Timer(40, hide_words, args=[message])
     memorytest_timer.start()
 
-    bot.send_message(message.chat.id, '*Memory test*\nMemorize the words below in the order they are presented\n\n%s\nYou have 40 seconds to do this task. This message will disappear and you will be asked to send the words in the correct order using the keyboard or by typing them'%words_str, reply_markup=markup, parse_mode='Markdown')
+    memorytest_message_id =  bot.send_message(message.chat.id, '*Memory test*\nMemorize the words below in the order they are presented\n\n%s\nYou have 40 seconds to do this task. This message will disappear and you will be asked to send the words in the correct order using the keyboard or by typing them\nType /memex to stop the test'%words_str, parse_mode='Markdown').message_id
 
 @bot.message_handler(commands=['memex'])
 def stop_memtest(message):
-    global memorytest_timer
+    global memorytest_timer, action
 
     if not memorytest_timer:
         bot.reply_to(message, 'No memory test in progress.\nStart one with /memtest')
@@ -113,7 +130,9 @@ def stop_memtest(message):
 
     memorytest_timer.cancel()
     memorytest_timer = None
+    action = CURRENT_ACTION.IDLE
 
+    if not message: return
     bot.send_message(message.chat.id, 'The memtest has been stopped.\nStart one with /memtest')
 
 @bot.message_handler(commands=['help'])
@@ -163,7 +182,7 @@ def add_question(message):
     global action
     if action == CURRENT_ACTION.IDLE:
         action = CURRENT_ACTION.CHOOSING_CATEGORY
-        bot.send_message(message.chat.id, '--- *New question* ---\nChoose the _category_', reply_markup=CATEGORY_CHOOSING_MARKUP, parse_mode='Markdown')
+        bot.send_message(message.chat.id, '--- *New question* ---\nChoose the _category_', reply_markup=get_category_choosing_markup(), parse_mode='Markdown')
 
 @bot.message_handler(func=lambda message: message.text and message.text != '' and not message.text.startswith('/'))
 def handle_message(message):
@@ -186,7 +205,7 @@ def handle_message(message):
         bot.send_message(message.chat.id, '--- *Adding question #4* ---\nIf you want to attach any files to this question, send them to me *AS DOCUMENTS*. \nIf not, type /saveq', parse_mode='Markdown')
     elif action == CURRENT_ACTION.MEMORY_TEST:
         memorytest_words.append(message.text)
-        if len(memorytest_words) == 10:
+        if len(memorytest_words) == MEMTEST_NUMOF_WORDS:
             check_words(message.chat.id)
 
 @bot.message_handler(content_types=['document', 'photo'])
@@ -245,7 +264,7 @@ def discard_action(message):
 def send_welcome(message):
 	bot.send_message(message.chat.id, f'Hey, {message.from_user.username}\nThis bot is solely for use by specific people. \nYou have access to this bot: {access_allowed(message.from_user.username)}')
 
-if __name__ == '__main__':
+if __name__ == '__main__': 
     print('[%s] Initializing...'%dt.now())
     initialize()
     print('[%s] Bot started at %s'%(dt.now(), BOT_ADRESS))
