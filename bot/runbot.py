@@ -11,6 +11,7 @@ from buttons import get_category_choosing_markup, get_words_markup
 from threading import Timer
 sys.path.append(r'C:\Users\Asus\mrxexams\\')
 from misc.getwords import getwords
+from misc.parse_cambridge import parse
     
 bot = telebot.TeleBot(BOT_TOKEN, 'Markdown')
 
@@ -105,8 +106,8 @@ def init_memtest(message):
     memorytest_words = []
 
     words_str = ""
-    for word in words:
-        words_str += '*%s*\n'%word.capitalize()
+    for (word, translation) in words:
+        words_str += '*%s* (%s)\n'%(word.capitalize(), translation.capitalize())
 
     memorytest_corr = [word for word in words]
 
