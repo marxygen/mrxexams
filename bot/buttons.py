@@ -12,6 +12,6 @@ def get_words_markup(words):
     words_markup = types.ReplyKeyboardMarkup()
     for x in range(len(words)):
         word = random.choice(words)
-        words_markup.row(types.KeyboardButton(word.capitalize()))
+        words_markup.row(types.KeyboardButton(word[0].capitalize()))
         words.remove(word)
     return words_markup
