@@ -3,12 +3,12 @@ import json
 
 def __readfile(count):
     f = None
-    with open('misc/words_dictionary.json', 'rb') as file:
+    with open('misc/commonwords.json', 'r') as file:
         f = json.load(file)
 
-    w =  [random.choice([x for x in list(f.keys())]) for n in range(count)]
-    return [(word, f[word]) for word in w]
+    w =  [random.choice(f) for x in range(count)]
+    return [word for word in w]
 
 def getwords(count):
-    words = [ (word, translation) for (word, translation) in __readfile(count) ]
+    words = [ word for word in __readfile(count) ]
     return words
