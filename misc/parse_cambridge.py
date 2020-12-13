@@ -2,7 +2,7 @@ import requests
 from bs4 import BeautifulSoup
 from fake_useragent import UserAgent
 
-URL = 'https://dictionary.cambridge.org/dictionary/english/%s'
+URL = 'https://dictionary.cambridge.org/ru/словарь/англо-русский/%s'
 requests.packages.urllib3.disable_warnings()
 
 def parse(word):
@@ -14,6 +14,6 @@ def parse(word):
 
     try:
         soup = BeautifulSoup(response.text, features='lxml')
-        translation = soup.find('div', {'class': 'def ddef_d db'}).text.replace(':', '')
+        translation = soup.find('span', {'class': 'trans dtrans dtrans-se '}).text.strip()
     finally:
         return translation

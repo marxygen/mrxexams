@@ -6,7 +6,7 @@ def __readfile(count):
     with open(r'C:\Users\Asus\mrxexams\misc\commonwords.json', 'r') as file:
         f = json.load(file)
 
-    w =  [random.choice(f) for x in range(count)]
+    w =  [random.choice(list(f.items())) for x in range(count)]
     return [word for word in w]
 
 def getwords(count):
