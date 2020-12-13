@@ -83,15 +83,15 @@ def init_memtest(message):
         bot.reply_to(message, 'You are in the middle of somethind else. Finish it first!')
         return
 
-    words = getwords(10)
+    words = getwords(5)
     markup = get_words_markup(words)
     memorytest_words = []
 
     words_str = ""
-    for (word, translation) in words:
-        words_str += '*%s* (%s)\n'%(word, translation)
+    for word in words:
+        words_str += '*%s*\n'%word.capitalize()
 
-    memorytest_corr = [word for (word, translation) in words]
+    memorytest_corr = [word for word in words]
 
     action = CURRENT_ACTION.MEMORY_TEST
 
