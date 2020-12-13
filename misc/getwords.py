@@ -3,7 +3,7 @@ import json
 
 def __readfile(count):
     f = None
-    with open('misc/commonwords.json', 'r') as file:
+    with open(r'C:\Users\Asus\mrxexams\misc\commonwords.json', 'r') as file:
         f = json.load(file)
 
     w =  [random.choice(f) for x in range(count)]
