@@ -12,8 +12,9 @@ from threading import Timer
 sys.path.append(r'C:\Users\Asus\mrxexams\\')
 from misc.getwords import getwords
 from misc.parse_cambridge import parse
+from Exceptions import StopBot
     
-bot = telebot.TeleBot(BOT_TOKEN, 'Markdown')
+bot = telebot.TeleBot(BOT_TOKEN, parse_mode='Markdown')
 
 action = CURRENT_ACTION.IDLE
 action_data = dict()
@@ -86,7 +87,7 @@ def check_words(chat_id):
             results += '- %s [%s]\n'%(word, memorytest_corr[index].capitalize())
 
     results += 'Correct: %d/%d'%(correct, len(memorytest_words))
-    result += '\n\nYour memory test has ended. Start one with /memtest'
+    results += '\n\nYour memory test has ended. Start one with /memtest'
 
     bot.send_message(chat_id, results)
     action = CURRENT_ACTION.IDLE
@@ -156,13 +157,23 @@ def pomstop(message):
     switch_pomstage(POMODORO_STAGE.NONE, message.chat.id)
     bot.send_message(message.chat.id, 'Your pomodoro session has been terminated')
 
-@bot.message_handler(commands=['export'])
-def export(message):
-    file = exportq()
-    with open(file) as f:
-        bot.send_document(message.chat.id, f)
+@bot.message_handler(commands=['stop'])
+def stop_bot(message):
+    if not access_allowed(message.from_user.username):
+        bot.reply_to(message, 'Access denied')
+        return
+    export(message.chat.id)
+    bot.send_message(message.chat.id, 'Bot has been stopped')
+    raise StopBot
 
-    os.remove(file)
+@bot.message_handler(commands=['export'])
+def export(message, is_backup=False):
+    file = exportq(is_backup=is_backup)
+    with open(file) as f:
+        bot.send_document(message, f)
+
+    if not is_backup:
+        os.remove(file)
 
 @bot.message_handler(commands=['wipedb'])
 def wipedb(message):

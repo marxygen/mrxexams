@@ -1,5 +1,6 @@
 import sqlite3
-from params import DB_NAME, tables, CREATE_TABLE_COMMAND, ADD_QUESTION_COMMAND, NUMBEROF_ENTRIES, FILES_PATH, GET_ALL_ENTRIES_IN
+from params import (DB_NAME, tables, CREATE_TABLE_COMMAND, ADD_QUESTION_COMMAND, NUMBEROF_ENTRIES,
+ FILES_PATH, GET_ALL_ENTRIES_IN, BACKUPS_PATH)
 from datetime import datetime as dt
 import os
 import json
@@ -58,9 +59,14 @@ def getqin(category):
         print(f'\t[{dt.now()}] Exception occurred:\n\t\t{str(e)}')
         return []
 
-def exportq():
+def exportq(is_backup=False):
     filename = f'Report dd {str(dt.now())[:10]}.json'
     path = os.path.join(FILES_PATH, filename)
+
+    if is_backup:
+        filename = f'BACKUP_{dt.now()[:10]}'
+        path = os.path.join(BACKUPS_PATH, filename)
+        
     jsons = []
     for category in list(tables.values()):
         jsons.append({'category':category, 'items':getqin(category)})
@@ -69,3 +75,5 @@ def exportq():
         json.dump(jsons, f)
 
     return path
+
+
