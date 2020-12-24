@@ -1,11 +1,8 @@
-import sys
+import sys, os, requests, telebot
 from enum import Enum
-import telebot
 from dbrequests import initialize, addquestion, counttables, exportq
 from datetime import datetime as dt
 from datetime import timedelta
-import requests
-import os
 from params import BOT_TOKEN, BOT_ADRESS, ALLOWED_USERS, CURRENT_ACTION, ACTION_DATA, tables, FILES_PATH, DB_NAME, POMODORO_STAGE, MEMTEST_NUMOF_WORDS
 from buttons import get_category_choosing_markup, get_words_markup
 from threading import Timer
