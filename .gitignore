@@ -2,6 +2,7 @@ params.py
 database.db
 files/
 .vscode
+backups
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
