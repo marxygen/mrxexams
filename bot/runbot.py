@@ -10,6 +10,7 @@ sys.path.append(r'C:\Users\Asus\mrxexams\\')
 from misc.getwords import getwords
 from misc.parse_cambridge import parse
 from Exceptions import StopBot
+from dbmerger import merge_db
     
 bot = telebot.TeleBot(BOT_TOKEN, parse_mode='Markdown')
 
@@ -163,6 +164,12 @@ def stop_bot(message):
     bot.send_message(message.chat.id, 'Bot has been stopped.\nThe backup has been saved')
     raise StopBot
 
+@bot.message_handler(commands=['merge'])
+def mergedb(message):
+    global action
+    action = CURRENT_ACTION.MERGING_DB
+    bot.reply_to(message, 'Ok, send me the file')
+
 @bot.message_handler(commands=['export'])
 def export_questions(message):
     file = exportq()
@@ -225,6 +232,16 @@ def attach_files(message):
             bot.reply_to(message, 'The attachment has been processed. You can proceed to the next step now.')
         else:
             bot.reply_to(message, 'I see you want to add files to your question, but you didn\'t attach any documents.\nPlease send the files *as documents*', parse_mode='Markdown')
+    elif action == CURRENT_ACTION.MERGING_DB:
+        name = str(dt.now())[:10]
+        download_file(name, message.document.file_id)
+        action = CURRENT_ACTION.IDLE
+        bot.send_message(message.chat.id, 'Processing started.\nAllow some time to complete. You will receive the message once it\'s done')
+        success = merge_db(name)
+        if success:
+            bot.send_message(message.chat.id, "Processing complete.\nUse /stats to check")
+        else:
+            bot.reply_to(message, 'Couldn\'t execute the operation. Check if the file is in JSON and try again')
     else:
         bot.reply_to(message, 'I don\'t know why you are sending files to me.')
 
