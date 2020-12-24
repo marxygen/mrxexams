@@ -64,7 +64,7 @@ def exportq(is_backup=False):
     path = os.path.join(FILES_PATH, filename)
 
     if is_backup:
-        filename = f'BACKUP_{dt.now()[:10]}'
+        filename = f'BACKUP_{str(dt.now())[:10]}.json'
         path = os.path.join(BACKUPS_PATH, filename)
         
     jsons = []

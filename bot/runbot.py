@@ -159,18 +159,16 @@ def stop_bot(message):
     if not access_allowed(message.from_user.username):
         bot.reply_to(message, 'Access denied')
         return
-    export(message.chat.id)
-    bot.send_message(message.chat.id, 'Bot has been stopped')
+    _ = exportq(is_backup=True)
+    bot.send_message(message.chat.id, 'Bot has been stopped.\nThe backup has been saved')
     raise StopBot
 
 @bot.message_handler(commands=['export'])
-def export(message, is_backup=False):
-    file = exportq(is_backup=is_backup)
+def export_questions(message):
+    file = exportq()
     with open(file) as f:
-        bot.send_document(message, f)
-
-    if not is_backup:
-        os.remove(file)
+        bot.send_document(message.chat.id, f)
+    os.remove(file)
 
 @bot.message_handler(commands=['wipedb'])
 def wipedb(message):
