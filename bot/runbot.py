@@ -11,6 +11,7 @@ from misc.getwords import getwords
 from misc.parse_cambridge import parse
 from Exceptions import StopBot
 from dbmerger import merge_db
+from doc_manager import create_document
     
 bot = telebot.TeleBot(BOT_TOKEN, parse_mode='Markdown')
 
@@ -163,6 +164,31 @@ def stop_bot(message):
     _ = exportq(is_backup=True)
     bot.send_message(message.chat.id, 'Bot has been stopped.\nThe backup has been saved')
     raise StopBot
+
+@bot.message_handler(commands=['expq'])
+def export_questions(message):
+    intended_cats = message.text[5:].split(' ')
+    categories = []
+    for cat in intended_cats:
+        if cat.lower() == 'all':
+            categories = tables.values()
+            break
+        if cat.lower() in tables.values():
+            categories.append(cat.lower())
+            
+    if not categories:
+        bot.reply_to(message, 'No valid category names found. Operation aborted')
+        return
+
+    bot.send_message(message.chat.id, f'Creating a document for the following categories: {",".join([category.capitalize() for category in categories])}')
+    files = create_document(exportq(), categories)
+    if not files:
+        bot.send_message(message.chat.id, 'Operation cannot be completed')
+        return
+    for file in files:
+        with open(file, 'rb') as f:
+            bot.send_document(message.chat.id, f)
+        os.remove(file)
 
 @bot.message_handler(commands=['merge'])
 def mergedb(message):
